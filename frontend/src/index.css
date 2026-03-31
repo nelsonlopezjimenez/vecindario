@@ -1,0 +1,28 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy:   #1a2e4a;
+  --blue:   #2563eb;
+  --sky:    #93c5fd;
+  --sand:   #faf7f2;
+  --warm:   #f0ebe1;
+  --text:   #1c1917;
+  --muted:  #6b7280;
+  --border: #e5e7eb;
+  --radius: 10px;
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body:    'DM Sans', system-ui, sans-serif;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--sand);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+input, select, textarea, button { font-family: inherit; }
+
+a { color: inherit; }
+
+::placeholder { color: var(--muted); }
