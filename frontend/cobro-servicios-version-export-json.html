@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Cobro de Servicio de Energia</title>
+    <meta name="description" content="301:xxxx4205; 201:xxxx4198">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .section { margin-bottom: 30px; padding: 15px; border: 1px solid #ccc; }
+        h2 { margin-bottom: 15px; }
+        .form-row { margin-bottom: 10px; }
+        label { display: inline-block; width: 200px; font-weight: bold; }
+        input, select { padding: 5px; width: 250px; }
+        input[readonly] { background: #f0f0f0; color: #555; }
+        .apartment-section { margin: 20px 0; padding: 10px; background: #f5f5f5; }
+        .apartment-section h4 { margin-bottom: 10px; }
+        .calculation-result { margin-top: 10px; padding: 10px; background: #e8f4f8; font-weight: bold; }
+        .error { color: red; font-weight: bold; padding: 10px; background: #ffe6e6; margin: 10px 0; }
+        .success { color: green; font-weight: bold; padding: 10px; background: #e6ffe6; margin: 10px 0; }
+        button { padding: 10px 20px; margin: 10px 5px; font-size: 16px; cursor: pointer; }
+        .btn-calculate { background: #4CAF50; color: white; border: none; }
+        .btn-letter    { background: #2196F3; color: white; border: none; }
+        .btn-export    { background: #9C27B0; color: white; border: none; }
+        .btn-import-label {
+            display: inline-block;
+            background: #607D8B; color: white;
+            padding: 10px 20px; font-size: 16px;
+            cursor: pointer; margin: 10px 5px;
+        }
+        #saveStatus { display: inline-block; margin-left: 10px; font-size: 13px; color: #666; }
+
+        /* History panel */
+        #historyPanel { margin-top: 20px; padding: 15px; border: 1px solid #ccc; background: #fafafa; }
+        #historyPanel h3 { margin-bottom: 12px; }
+        #historyList { width: 100%; border-collapse: collapse; }
+        #historyList th, #historyList td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+        #historyList th { background: #f0f0f0; }
+        #historyList tr:hover { background: #f5f5ff; }
+        .btn-hist-load { background: #1976D2; color: white; border: none; padding: 4px 12px; cursor: pointer; font-size: 13px; }
+        .btn-hist-del  { background: #c62828; color: white; border: none; padding: 4px 12px; cursor: pointer; font-size: 13px; margin-left: 6px; }
+
+        .letter-preview { display: none; margin-top: 30px; padding: 40px; border: 2px solid #000; background: white; }
+        @media print {
+            .section, .buttons-bar, #historyPanel, #saveStatus { display: none; }
+            .letter-preview { display: block !important; border: none; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Calculadora de Cobro de Servicios de Energia</h1>
+
+    <!-- Información General -->
+    <div class="section">
+        <h2>Información General</h2>
+        <div class="form-row">
+            <label for="floor">Número de Piso:</label>
+            <input type="number" id="floor" min="1" value="3" onchange="updateApartmentNumbers()">
+        </div>
+        <div class="form-row">
+            <label for="letterDate">Fecha de la Carta:</label>
+            <input type="date" id="letterDate">
+        </div>
+        <div class="form-row">
+            <label for="billingMonth">Mes de Facturación:</label>
+            <select id="billingMonth">
+                <option value="Enero">Enero</option>
+                <option value="Febrero">Febrero</option>
+                <option value="Marzo">Marzo</option>
+                <option value="Abril">Abril</option>
+                <option value="Mayo">Mayo</option>
+                <option value="Junio">Junio</option>
+                <option value="Julio">Julio</option>
+                <option value="Agosto">Agosto</option>
+                <option value="Septiembre">Septiembre</option>
+                <option value="Octubre">Octubre</option>
+                <option value="Noviembre" selected>Noviembre</option>
+                <option value="Diciembre">Diciembre</option>
+            </select>
+        </div>
+        <div class="form-row">
+            <label for="billingYear">Año de Facturación:</label>
+            <input type="number" id="billingYear" min="2020" value="2025">
+        </div>
+    </div>
+
+    <!-- Electricidad -->
+    <div class="section">
+        <h2>⚡ SERVICIO DE LUZ (Electricidad)</h2>
+        <div class="form-row">
+            <label for="elecAccountNumber">Número de Cuenta Electricidad:</label>
+            <input type="text" id="elecAccountNumber" placeholder="Ej: 123456789">
+        </div>
+        <div class="form-row">
+            <label for="elecBillingStart">Período Facturación - Inicio:</label>
+            <input type="date" id="elecBillingStart">
+        </div>
+        <div class="form-row">
+            <label for="elecBillingEnd">Período Facturación - Fin:</label>
+            <input type="date" id="elecBillingEnd">
+        </div>
+        <div class="form-row">
+            <label for="elecMeterPrev">Lectura Anterior Medidor General (kWh):</label>
+            <input type="number" id="elecMeterPrev" min="0" step="0.01" placeholder="Ej: 1000" oninput="updateMeterConsumption('elec')">
+        </div>
+        <div class="form-row">
+            <label for="elecMeterCurr">Lectura Actual Medidor General (kWh):</label>
+            <input type="number" id="elecMeterCurr" min="0" step="0.01" placeholder="Ej: 1229" oninput="updateMeterConsumption('elec')">
+        </div>
+        <div class="form-row">
+            <label for="elecTotalConsumption">Consumo Total Medidor General (kWh):</label>
+            <input type="number" id="elecTotalConsumption" readonly>
+        </div>
+        <div class="form-row">
+            <label for="elecTotalBill">Valor Factura Total (pesos):</label>
+            <input type="number" id="elecTotalBill" min="0" step="0.01" placeholder="Ej: 150646">
+        </div>
+
+        <h3>Lecturas por Apartamento</h3>
+        <div class="apartment-section">
+            <h4>Apartamento <span class="apt-number-01">301</span> (calculado automáticamente)</h4>
+            <div class="calculation-result" style="background:#fff3cd;">
+                Consumo: <span id="elec301consumption">0</span> kWh | Monto: $ <span id="elec301amount">0</span>
+            </div>
+        </div>
+        <div class="apartment-section">
+            <h4>Apartamento <span class="apt-number-02">302</span></h4>
+            <div class="form-row"><label>Lectura Anterior (kWh):</label><input type="number" id="elec302prev" min="0" step="0.01"></div>
+            <div class="form-row"><label>Lectura Actual (kWh):</label><input type="number" id="elec302curr" min="0" step="0.01"></div>
+            <div class="calculation-result">Consumo: <span id="elec302consumption">0</span> kWh | Monto: $ <span id="elec302amount">0</span></div>
+        </div>
+        <div class="apartment-section">
+            <h4>Apartamento <span class="apt-number-03">303</span></h4>
+            <div class="form-row"><label>Lectura Anterior (kWh):</label><input type="number" id="elec303prev" min="0" step="0.01"></div>
+            <div class="form-row"><label>Lectura Actual (kWh):</label><input type="number" id="elec303curr" min="0" step="0.01"></div>
+            <div class="calculation-result">Consumo: <span id="elec303consumption">0</span> kWh | Monto: $ <span id="elec303amount">0</span></div>
+        </div>
+        <div id="elecValidation"></div>
+    </div>
+
+    <!-- Gas -->
+    <div class="section">
+        <h2>🔥 SERVICIO DE GAS (Propano)</h2>
+        <div class="form-row">
+            <label for="gasAccountNumber">Número de Cuenta Gas:</label>
+            <input type="text" id="gasAccountNumber" placeholder="Ej: 987654321">
+        </div>
+        <div class="form-row">
+            <label for="gasBillingStart">Período Facturación - Inicio:</label>
+            <input type="date" id="gasBillingStart">
+        </div>
+        <div class="form-row">
+            <label for="gasBillingEnd">Período Facturación - Fin:</label>
+            <input type="date" id="gasBillingEnd">
+        </div>
+        <div class="form-row">
+            <label for="gasMeterPrev">Lectura Anterior Medidor General (m³):</label>
+            <input type="number" id="gasMeterPrev" min="0" step="0.01" placeholder="Ej: 500" oninput="updateMeterConsumption('gas')">
+        </div>
+        <div class="form-row">
+            <label for="gasMeterCurr">Lectura Actual Medidor General (m³):</label>
+            <input type="number" id="gasMeterCurr" min="0" step="0.01" placeholder="Ej: 650" oninput="updateMeterConsumption('gas')">
+        </div>
+        <div class="form-row">
+            <label for="gasTotalConsumption">Consumo Total Medidor General (m³):</label>
+            <input type="number" id="gasTotalConsumption" readonly>
+        </div>
+        <div class="form-row">
+            <label for="gasTotalBill">Valor Factura Total (pesos):</label>
+            <input type="number" id="gasTotalBill" min="0" step="0.01" placeholder="Ej: 33430">
+        </div>
+
+        <h3>Lecturas por Apartamento</h3>
+        <div class="apartment-section">
+            <h4>Apartamento <span class="apt-number-01">301</span> (calculado automáticamente)</h4>
+            <div class="calculation-result" style="background:#fff3cd;">
+                Consumo: <span id="gas301consumption">0</span> m³ | Monto: $ <span id="gas301amount">0</span>
+            </div>
+        </div>
+        <div class="apartment-section">
+            <h4>Apartamento <span class="apt-number-02">302</span></h4>
+            <div class="form-row"><label>Lectura Anterior (m³):</label><input type="number" id="gas302prev" min="0" step="0.01"></div>
+            <div class="form-row"><label>Lectura Actual (m³):</label><input type="number" id="gas302curr" min="0" step="0.01"></div>
+            <div class="calculation-result">Consumo: <span id="gas302consumption">0</span> m³ | Monto: $ <span id="gas302amount">0</span></div>
+        </div>
+        <div class="apartment-section">
+            <h4>Apartamento <span class="apt-number-03">303</span></h4>
+            <div class="form-row"><label>Lectura Anterior (m³):</label><input type="number" id="gas303prev" min="0" step="0.01"></div>
+            <div class="form-row"><label>Lectura Actual (m³):</label><input type="number" id="gas303curr" min="0" step="0.01"></div>
+            <div class="calculation-result">Consumo: <span id="gas303consumption">0</span> m³ | Monto: $ <span id="gas303amount">0</span></div>
+        </div>
+        <div id="gasValidation"></div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="buttons-bar">
+        <button class="btn-calculate" onclick="calculateAll()">Calcular</button>
+        <button class="btn-letter"    onclick="generateLetter()">Generar Carta</button>
+        <button                       onclick="window.print()">Imprimir</button>
+        <button class="btn-export"    onclick="exportJSON()">Exportar JSON</button>
+        <label class="btn-import-label">Importar JSON
+            <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importJSON(event)">
+        </label>
+        <span id="saveStatus"></span>
+    </div>
+
+    <!-- History Panel -->
+    <div id="historyPanel">
+        <h3>📋 Historial de registros guardados</h3>
+        <table id="historyList">
+            <thead>
+                <tr>
+                    <th>Período</th>
+                    <th>Guardado el</th>
+                    <th>Luz (factura)</th>
+                    <th>Gas (factura)</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="historyBody">
+                <tr><td colspan="5" style="color:#999;">No hay registros guardados.</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Letter Preview -->
+    <div class="letter-preview" id="letterPreview"></div>
+
+    <script>
+        // ── Storage schema ────────────────────────────────────────────────────
+        // Index key  : 'cobro-v1:index'  → array of period strings ["Noviembre-2025", ...]
+        // Record key : 'cobro-v1:Noviembre-2025' → { ...fieldValues, _savedAt }
+
+        const STORE_PREFIX = 'cobro-v1:';
+        const INDEX_KEY    = STORE_PREFIX + 'index';
+
+        const INPUT_IDS = [
+            'floor', 'letterDate', 'billingMonth', 'billingYear',
+            'elecAccountNumber', 'elecBillingStart', 'elecBillingEnd',
+            'elecMeterPrev', 'elecMeterCurr', 'elecTotalBill',
+            'elec302prev', 'elec302curr', 'elec303prev', 'elec303curr',
+            'gasAccountNumber', 'gasBillingStart', 'gasBillingEnd',
+            'gasMeterPrev', 'gasMeterCurr', 'gasTotalBill',
+            'gas302prev', 'gas302curr', 'gas303prev', 'gas303curr',
+        ];
+
+        function currentPeriod() {
+            const month = document.getElementById('billingMonth').value;
+            const year  = document.getElementById('billingYear').value;
+            return `${month}-${year}`;
+        }
+
+        function getIndex() {
+            return JSON.parse(localStorage.getItem(INDEX_KEY) || '[]');
+        }
+
+        function saveIndex(index) {
+            localStorage.setItem(INDEX_KEY, JSON.stringify(index));
+        }
+
+        // ── Save current form to its period key ───────────────────────────────
+        function saveToStorage() {
+            const period = currentPeriod();
+            const data = { _savedAt: new Date().toISOString() };
+            INPUT_IDS.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) data[id] = el.value;
+            });
+
+            localStorage.setItem(STORE_PREFIX + period, JSON.stringify(data));
+
+            // Update index (avoid duplicates)
+            const index = getIndex();
+            if (!index.includes(period)) {
+                index.unshift(period); // newest first
+                saveIndex(index);
+            }
+
+            renderHistory();
+            showStatus(`✓ Guardado: ${period}`);
+        }
+
+        // ── Load a period into the form ───────────────────────────────────────
+        function loadPeriod(period) {
+            const raw = localStorage.getItem(STORE_PREFIX + period);
+            if (!raw) { alert(`No se encontró el registro: ${period}`); return; }
+            const data = JSON.parse(raw);
+            INPUT_IDS.forEach(id => {
+                const el = document.getElementById(id);
+                if (el && data[id] !== undefined) el.value = data[id];
+            });
+            updateMeterConsumption('elec');
+            updateMeterConsumption('gas');
+            updateApartmentNumbers();
+            const saved = data._savedAt ? new Date(data._savedAt).toLocaleString('es-CO') : '';
+            showStatus(`↩ Cargado: ${period} (guardado: ${saved})`);
+        }
+
+        // ── Delete a period ───────────────────────────────────────────────────
+        function deletePeriod(period) {
+            if (!confirm(`¿Eliminar el registro de ${period}?`)) return;
+            localStorage.removeItem(STORE_PREFIX + period);
+            const index = getIndex().filter(p => p !== period);
+            saveIndex(index);
+            renderHistory();
+            showStatus(`🗑 Eliminado: ${period}`);
+        }
+
+        // ── Render history table ──────────────────────────────────────────────
+        function renderHistory() {
+            const index = getIndex();
+            const tbody = document.getElementById('historyBody');
+            if (index.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="color:#999;">No hay registros guardados.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = index.map(period => {
+                const raw  = localStorage.getItem(STORE_PREFIX + period);
+                if (!raw) return '';
+                const data = JSON.parse(raw);
+                const savedAt  = data._savedAt ? new Date(data._savedAt).toLocaleString('es-CO') : '—';
+                const elecBill = data.elecTotalBill ? `$ ${parseFloat(data.elecTotalBill).toLocaleString('en-US')}` : '—';
+                const gasBill  = data.gasTotalBill  ? `$ ${parseFloat(data.gasTotalBill).toLocaleString('en-US')}`  : '—';
+                return `
+                <tr>
+                    <td><strong>${period}</strong></td>
+                    <td>${savedAt}</td>
+                    <td>${elecBill}</td>
+                    <td>${gasBill}</td>
+                    <td>
+                        <button class="btn-hist-load" onclick="loadPeriod('${period}')">Cargar</button>
+                        <button class="btn-hist-del"  onclick="deletePeriod('${period}')">Eliminar</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        // ── Status helper ─────────────────────────────────────────────────────
+        function showStatus(msg) {
+            const el = document.getElementById('saveStatus');
+            el.textContent = msg;
+            setTimeout(() => el.textContent = '', 4000);
+        }
+
+        // ── Export / Import JSON ──────────────────────────────────────────────
+        function exportJSON() {
+            const period = currentPeriod();
+            const raw = localStorage.getItem(STORE_PREFIX + period);
+            const data = raw ? JSON.parse(raw) : {};
+            // Always export current form state
+            INPUT_IDS.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) data[id] = el.value;
+            });
+            data._savedAt = data._savedAt || new Date().toISOString();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `cobro-${period}.json`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            showStatus(`⬇ Exportado: cobro-${period}.json`);
+        }
+
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    INPUT_IDS.forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el && data[id] !== undefined) el.value = data[id];
+                    });
+                    updateMeterConsumption('elec');
+                    updateMeterConsumption('gas');
+                    updateApartmentNumbers();
+                    // Save imported data into its period slot
+                    const period = currentPeriod();
+                    data._savedAt = data._savedAt || new Date().toISOString();
+                    localStorage.setItem(STORE_PREFIX + period, JSON.stringify(data));
+                    const index = getIndex();
+                    if (!index.includes(period)) { index.unshift(period); saveIndex(index); }
+                    renderHistory();
+                    showStatus(`⬆ Importado y guardado: ${period}`);
+                } catch {
+                    alert('Error: archivo JSON inválido.');
+                }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        // ── Init ──────────────────────────────────────────────────────────────
+        document.getElementById('letterDate').valueAsDate = new Date();
+        updateApartmentNumbers();
+        renderHistory();
+
+        // Auto-load most recent record if exists
+        const existingIndex = getIndex();
+        if (existingIndex.length > 0) loadPeriod(existingIndex[0]);
+
+        // ── Apartment numbers ─────────────────────────────────────────────────
+        function updateApartmentNumbers() {
+            const floor = document.getElementById('floor').value;
+            document.querySelectorAll('.apt-number-01').forEach(el => el.textContent = floor + '01');
+            document.querySelectorAll('.apt-number-02').forEach(el => el.textContent = floor + '02');
+            document.querySelectorAll('.apt-number-03').forEach(el => el.textContent = floor + '03');
+        }
+
+        // ── Meter consumption ─────────────────────────────────────────────────
+        function updateMeterConsumption(prefix) {
+            const prev = parseFloat(document.getElementById(`${prefix}MeterPrev`).value) || 0;
+            const curr = parseFloat(document.getElementById(`${prefix}MeterCurr`).value) || 0;
+            document.getElementById(`${prefix}TotalConsumption`).value = curr >= prev ? curr - prev : 0;
+        }
+
+        // ── Core calculation ──────────────────────────────────────────────────
+        function calculateUtility(prefix, totalBill, totalMeterConsumption) {
+            const prev302 = parseFloat(document.getElementById(`${prefix}302prev`).value) || 0;
+            const curr302 = parseFloat(document.getElementById(`${prefix}302curr`).value) || 0;
+            const prev303 = parseFloat(document.getElementById(`${prefix}303prev`).value) || 0;
+            const curr303 = parseFloat(document.getElementById(`${prefix}303curr`).value) || 0;
+
+            const cons302 = curr302 - prev302;
+            const cons303 = curr303 - prev303;
+            const cons301 = totalMeterConsumption - cons302 - cons303;
+            const totalConsumption = cons301 + cons302 + cons303;
+
+            document.getElementById(`${prefix}301consumption`).textContent = cons301.toFixed(2);
+            document.getElementById(`${prefix}302consumption`).textContent = cons302.toFixed(2);
+            document.getElementById(`${prefix}303consumption`).textContent = cons303.toFixed(2);
+
+            let amount301 = 0, amount302 = 0, amount303 = 0;
+            if (totalConsumption > 0) {
+                amount301 = (cons301 / totalConsumption) * totalBill;
+                amount302 = (cons302 / totalConsumption) * totalBill;
+                amount303 = (cons303 / totalConsumption) * totalBill;
+            }
+
+            document.getElementById(`${prefix}301amount`).textContent = Math.round(amount301).toLocaleString('en-US');
+            document.getElementById(`${prefix}302amount`).textContent = Math.round(amount302).toLocaleString('en-US');
+            document.getElementById(`${prefix}303amount`).textContent = Math.round(amount303).toLocaleString('en-US');
+
+            return {
+                totalConsumption,
+                apartments: {
+                    301: { consumption: cons301, amount: amount301 },
+                    302: { consumption: cons302, amount: amount302 },
+                    303: { consumption: cons303, amount: amount303 }
+                }
+            };
+        }
+
+        function validateCalculation(totalBill, calculatedTotal, totalMeterConsumption, calculatedConsumption, validationElementId) {
+            const validationDiv = document.getElementById(validationElementId);
+            const amountDiff      = Math.abs(totalBill - calculatedTotal);
+            const consumptionDiff = Math.abs(totalMeterConsumption - calculatedConsumption);
+            let messages = [], hasError = false;
+
+            if (amountDiff < 1) {
+                messages.push(`<span style="color:green">✓ Suma montos correcta: $${Math.round(calculatedTotal).toLocaleString('en-US')} = $${Math.round(totalBill).toLocaleString('en-US')}</span>`);
+            } else {
+                messages.push(`<span style="color:red">⚠ Diferencia montos: $${Math.round(calculatedTotal).toLocaleString('en-US')} vs $${Math.round(totalBill).toLocaleString('en-US')} (dif: $${Math.round(amountDiff).toLocaleString('en-US')})</span>`);
+                hasError = true;
+            }
+            if (consumptionDiff < 0.01) {
+                messages.push(`<span style="color:green">✓ Suma consumos correcta: ${calculatedConsumption.toFixed(2)} = ${totalMeterConsumption.toFixed(2)}</span>`);
+            } else {
+                messages.push(`<span style="color:red">⚠ Diferencia consumos: ${calculatedConsumption.toFixed(2)} vs ${totalMeterConsumption.toFixed(2)} (dif: ${consumptionDiff.toFixed(2)})</span>`);
+                hasError = true;
+            }
+            validationDiv.innerHTML = `<div class="${hasError ? 'error' : 'success'}">${messages.join('<br>')}</div>`;
+        }
+
+        function calculateAll() {
+            const elecBill = parseFloat(document.getElementById('elecTotalBill').value) || 0;
+            const elecCons = parseFloat(document.getElementById('elecTotalConsumption').value) || 0;
+            const elecR    = calculateUtility('elec', elecBill, elecCons);
+            validateCalculation(elecBill,
+                elecR.apartments[301].amount + elecR.apartments[302].amount + elecR.apartments[303].amount,
+                elecCons, elecR.totalConsumption, 'elecValidation');
+
+            const gasBill = parseFloat(document.getElementById('gasTotalBill').value) || 0;
+            const gasCons = parseFloat(document.getElementById('gasTotalConsumption').value) || 0;
+            const gasR    = calculateUtility('gas', gasBill, gasCons);
+            validateCalculation(gasBill,
+                gasR.apartments[301].amount + gasR.apartments[302].amount + gasR.apartments[303].amount,
+                gasCons, gasR.totalConsumption, 'gasValidation');
+
+            saveToStorage();
+        }
+
+        // ── Date helpers ──────────────────────────────────────────────────────
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date   = new Date(dateString + 'T00:00:00');
+            const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+            return `${date.getDate()} ${months[date.getMonth()]}`;
+        }
+
+        function formatFullDate(dateString) {
+            if (!dateString) return '';
+            const date   = new Date(dateString + 'T00:00:00');
+            const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+            return `${date.getDate()} de ${months[date.getMonth()]} de ${date.getFullYear()}`;
+        }
+
+        // ── Readings table ────────────────────────────────────────────────────
+        function readingsTable(apt01, apt02, apt03, prefix, unit) {
+            const p302    = parseFloat(document.getElementById(`${prefix}302prev`).value) || 0;
+            const c302    = parseFloat(document.getElementById(`${prefix}302curr`).value) || 0;
+            const p303    = parseFloat(document.getElementById(`${prefix}303prev`).value) || 0;
+            const c303    = parseFloat(document.getElementById(`${prefix}303curr`).value) || 0;
+            const cons301 = parseFloat(document.getElementById(`${prefix}301consumption`).textContent) || 0;
+            const cons302 = parseFloat(document.getElementById(`${prefix}302consumption`).textContent) || 0;
+            const cons303 = parseFloat(document.getElementById(`${prefix}303consumption`).textContent) || 0;
+            const amt301  = Math.round(parseFloat(document.getElementById(`${prefix}301amount`).textContent.replace(/,/g, '')));
+            const amt302  = Math.round(parseFloat(document.getElementById(`${prefix}302amount`).textContent.replace(/,/g, '')));
+            const amt303  = Math.round(parseFloat(document.getElementById(`${prefix}303amount`).textContent.replace(/,/g, '')));
+
+            const cell = (v, right = false, grey = false) =>
+                `<td style="border:1px solid #ccc;padding:6px 10px;${right ? 'text-align:right;' : ''}${grey ? 'color:#888;' : ''}">${v}</td>`;
+
+            const row = (apt, prev, curr, cons, amt, noMeter = false) => `
+                <tr>
+                    ${cell(`<strong>${apt}</strong>`)}
+                    ${noMeter ? cell('—', true, true) : cell(prev.toLocaleString('en-US'), true)}
+                    ${noMeter ? cell('—', true, true) : cell(curr.toLocaleString('en-US'), true)}
+                    ${cell(cons.toFixed(2), true)}
+                    ${cell(`<strong>$ ${amt.toLocaleString('en-US')}</strong>`, true)}
+                </tr>`;
+
+            return `
+            <table style="border-collapse:collapse;width:100%;margin:10px 0 20px 30px;">
+                <thead>
+                    <tr style="background:#f0f0f0;">
+                        <th style="border:1px solid #ccc;padding:6px 10px;text-align:left;">Apt</th>
+                        <th style="border:1px solid #ccc;padding:6px 10px;text-align:right;">Lect. Anterior (${unit})</th>
+                        <th style="border:1px solid #ccc;padding:6px 10px;text-align:right;">Lect. Actual (${unit})</th>
+                        <th style="border:1px solid #ccc;padding:6px 10px;text-align:right;">Consumo (${unit})</th>
+                        <th style="border:1px solid #ccc;padding:6px 10px;text-align:right;">Valor a pagar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${row(apt01, 0, 0, cons301, amt301, true)}
+                    ${row(apt02, p302, c302, cons302, amt302)}
+                    ${row(apt03, p303, c303, cons303, amt303)}
+                </tbody>
+            </table>`;
+        }
+
+        // ── Letter generator ──────────────────────────────────────────────────
+        function generateLetter() {
+            const floor = document.getElementById('floor').value;
+            const apt01 = floor + '01', apt02 = floor + '02', apt03 = floor + '03';
+            const letterDate   = formatFullDate(document.getElementById('letterDate').value);
+            const billingMonth = document.getElementById('billingMonth').value;
+            const billingYear  = document.getElementById('billingYear').value;
+
+            const elecAccountNumber = document.getElementById('elecAccountNumber').value;
+            const elecStart = formatDate(document.getElementById('elecBillingStart').value);
+            const elecEnd   = formatDate(document.getElementById('elecBillingEnd').value);
+            const elecTotal = parseFloat(document.getElementById('elecTotalBill').value) || 0;
+
+            const gasAccountNumber = document.getElementById('gasAccountNumber').value;
+            const gasStart = formatDate(document.getElementById('gasBillingStart').value);
+            const gasEnd   = formatDate(document.getElementById('gasBillingEnd').value);
+            const gasTotal = parseFloat(document.getElementById('gasTotalBill').value) || 0;
+            const hasGas   = gasTotal > 0;
+
+            const letterHTML = `
+                <h2>CARTA DE COBRO DE SERVICIOS DE LUZ${hasGas ? ' Y GAS' : ''}</h2>
+                <h3>Apartamentos Piso ${floor}</h3>
+                <p style="margin:20px 0;"><strong>Fecha:</strong> ${letterDate}<br><strong>Bogotá, D.C., Colombia</strong></p>
+                <p style="margin:20px 0;"><strong>Apreciados vecinos(as) – Apartamentos piso ${floor}</strong></p>
+                <p style="margin:20px 0;">Cordial saludo.</p>
+                <p style="margin:20px 0;">Por medio de la presente, les informamos el cobro correspondiente a los servicios de
+                <strong>LUZ${hasGas ? ' y GAS' : ''}</strong> para los apartamentos ${apt01}, ${apt02} y ${apt03},
+                correspondiente al mes de ${billingMonth} de ${billingYear}.</p>
+
+                <h3 style="margin-top:30px;">⚡ DETALLE DE COBRO – LUZ (${elecStart} – ${elecEnd})</h3>
+                <ul style="margin:10px 0 10px 30px;line-height:1.8;">
+                    ${elecAccountNumber ? `<li><strong>Número de cuenta:</strong> ${elecAccountNumber}</li>` : ''}
+                    <li><strong>Período de facturación:</strong> ${elecStart} a ${elecEnd}</li>
+                    <li><strong>Valor factura total:</strong> $ ${Math.round(elecTotal).toLocaleString('en-US')} pesos</li>
+                    <li><strong>Lecturas por apartamento:</strong></li>
+                </ul>
+                ${readingsTable(apt01, apt02, apt03, 'elec', 'kWh')}
+
+                ${hasGas ? `
+                <h3 style="margin-top:30px;">🔥 DETALLE DE COBRO – GAS (${gasStart} – ${gasEnd})</h3>
+                <ul style="margin:10px 0 10px 30px;line-height:1.8;">
+                    ${gasAccountNumber ? `<li><strong>Número de cuenta:</strong> ${gasAccountNumber}</li>` : ''}
+                    <li><strong>Período de facturación:</strong> ${gasStart} a ${gasEnd}</li>
+                    <li><strong>Valor factura total:</strong> $ ${Math.round(gasTotal).toLocaleString('en-US')} pesos</li>
+                    <li><strong>Lecturas por apartamento:</strong></li>
+                </ul>
+                ${readingsTable(apt01, apt02, apt03, 'gas', 'm³')}
+                ` : ''}
+
+                <h3 style="margin-top:30px;">FORMA DE PAGO</h3>
+                <p style="margin:20px 0;"><strong>Datos para la consignación:</strong></p>
+                <ul style="margin:10px 0 10px 30px;line-height:1.8;">
+                    <li><strong>Banco:</strong> Bancolombia</li>
+                    <li><strong>Tipo de cuenta:</strong> Cuenta de ahorros</li>
+                    <li><strong>Número de cuenta:</strong> 80800015854</li>
+                    <li><strong>Titular:</strong> Nelson López Jiménez</li>
+                </ul>
+                <p style="margin:20px 0;">Una vez realizada la consignación, favor enviar el comprobante (pantallazo)
+                indicando el número del apartamento, el tipo de servicio y el mes.</p>
+                <p style="margin:20px 0;">Gracias.</p>
+            `;
+
+            document.getElementById('letterPreview').innerHTML = letterHTML;
+            document.getElementById('letterPreview').style.display = 'block';
+            document.getElementById('letterPreview').scrollIntoView({ behavior: 'smooth' });
+
+            saveToStorage();
+        }
+    </script>
+</body>
+</html>
